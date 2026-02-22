@@ -6,15 +6,19 @@ description = "A client for Orsta, a whatsapp service."
 license = "MIT"
 
 [dependencies]
+axum = "0.8.8"
 diesel = "2.3.6"
 diesel-async = { version = "0.7.4", features = [
     "postgres",
     "sqlite",
     "sync-connection-wrapper",
 ] }
+http = "1.4.0"
 libsqlite3-sys = { version = "0.35.0", features = ["bundled"] }
 serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
 tokio = { version = "1.49.0", features = ["full"] }
+tower-http = { version = "0.6.8", features = ["cors", "trace"] }
 
 [profile.release]
 strip = true

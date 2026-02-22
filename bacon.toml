@@ -1,0 +1,17 @@
+[jobs.my-build]
+command = ["cargo", "build", "--release"]
+need_stdout = true
+on_failure = "job:check"
+on_success = "job:copy-exe"
+
+[jobs.copy-exe]
+command = [
+    "cmd",
+    "/C",
+    "copy",
+    "target\\release\\Orsta-Client.exe",
+    "Orsta-Client.exe",
+]
+
+[jobs.check]
+command = ["cargo", "check", "--color", "never"]

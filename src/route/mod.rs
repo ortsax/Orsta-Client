@@ -12,8 +12,8 @@ pub fn start_client_api_service(orch: Arc<Mutex<Orchestrator>>) -> Router {
         // Instance management
         .route("/instances", get(instance::list_instances))
         .route("/instances", post(instance::create_instance))
-        .route("/instances/:id/activate", patch(instance::activate_instance))
-        .route("/instances/:id/deactivate", patch(instance::deactivate_instance))
+        .route("/instances/{id}/activate", patch(instance::activate_instance))
+        .route("/instances/{id}/deactivate", patch(instance::deactivate_instance))
         // Billing
         .route("/billing", get(billing::get_billing))
         .with_state(orch)

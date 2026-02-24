@@ -1,1 +1,4 @@
--- This file should undo anything in `up.sql`
+DROP TABLE IF EXISTS billing;
+DROP TABLE IF EXISTS instances;
+DROP TABLE IF EXISTS user_property;
+DROP TABLE IF EXISTS users;

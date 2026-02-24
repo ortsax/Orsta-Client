@@ -1,3 +1,4 @@
+mod auth;
 mod route;
 mod schema;
 mod sql;

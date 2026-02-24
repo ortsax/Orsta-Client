@@ -1,4 +1,5 @@
 mod auth;
+mod logger;
 mod route;
 mod schema;
 mod sql;
@@ -6,32 +7,51 @@ mod sql;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::time::{Duration, sleep};
+use tracing::info;
 
 #[tokio::main]
 async fn main() {
+    let _ = dotenvy::dotenv();
+
+    let debug_mode = std::env::var("DEBUG_MODE")
+        .map(|v| v.eq_ignore_ascii_case("true") || v == "1")
+        .unwrap_or(false);
+
+    logger::init(debug_mode);
+
     let orchestrator = Arc::new(Mutex::new(sql::Orchestrator::init().await));
 
-    println!("Orchestrator initialized. Ready to execute queries.");
+    info!("Orchestrator initialized. Ready to execute queries.");
 
     let sync_orch = Arc::clone(&orchestrator);
     tokio::spawn(async move {
         loop {
             sleep(Duration::from_secs(5)).await;
             let mut orch = sync_orch.lock().await;
-
             let ping = diesel::sql_query("SELECT 1");
             let _ = orch.sync_write(ping).await;
-
-            println!("Background heartbeat sync performed.");
         }
     });
 
     let app = route::start_client_api_service(Arc::clone(&orchestrator));
 
-    let addr = "0.0.0.0:3000";
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
+    let addr = format!("0.0.0.0:{}", port);
+    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
 
-    println!("🚀 API Service started on {}", addr);
+    info!("WebSocket service started on {}", addr);
 
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await
+        .unwrap();
+
+    info!("Server shut down cleanly.");
+}
+
+async fn shutdown_signal() {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("Failed to listen for Ctrl+C");
+    tracing::info!("Shutdown signal received.");
 }

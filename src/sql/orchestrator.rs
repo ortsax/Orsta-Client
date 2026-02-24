@@ -5,6 +5,7 @@ use diesel::sqlite::{Sqlite, SqliteConnection};
 use diesel_async::sync_connection_wrapper::SyncConnectionWrapper;
 use diesel_async::{AsyncConnection, RunQueryDsl, pg::AsyncPgConnection};
 use std::env;
+use tracing::{info, warn};
 
 pub struct Orchestrator {
     pub sqlite: SyncConnectionWrapper<SqliteConnection>,
@@ -53,9 +54,12 @@ CREATE TABLE IF NOT EXISTS billing (
 
 impl Orchestrator {
     pub async fn init() -> Self {
-        let db_url = env::var("DATABASE_URL").unwrap_or_else(|_| "database.db".to_string());
+        let sqlite_url = env::var("SQLITE_DATABASE_URL").unwrap_or_else(|_| "database.db".to_string());
+        let pg_url = env::var("POSTGRES_DATABASE_URL").ok().filter(|s| !s.is_empty());
 
-        let mut sqlite_conn = SyncConnectionWrapper::<SqliteConnection>::establish("database.db")
+        info!("Connecting to SQLite at {}", sqlite_url);
+
+        let mut sqlite_conn = SyncConnectionWrapper::<SqliteConnection>::establish(&sqlite_url)
             .await
             .expect("SQLite must start");
 
@@ -67,19 +71,24 @@ impl Orchestrator {
             }
             let query = diesel::sql_query(trimmed);
             let _ = query.execute(&mut sqlite_conn).await.map_err(|e| {
-                eprintln!("Schema init error: {}", e);
+                warn!("Schema init error: {}", e);
             });
         }
 
-        let pg_conn = if db_url.starts_with("postgres") {
-            match AsyncPgConnection::establish(&db_url).await {
-                Ok(c) => Some(c),
+        let pg_conn = if let Some(url) = pg_url {
+            info!("Connecting to Postgres...");
+            match AsyncPgConnection::establish(&url).await {
+                Ok(c) => {
+                    info!("Postgres connected.");
+                    Some(c)
+                }
                 Err(e) => {
-                    eprintln!("Postgres offline: {}. Operating in SQLite-only mode.", e);
+                    warn!("Postgres offline: {}. Operating in SQLite-only mode.", e);
                     None
                 }
             }
         } else {
+            info!("No POSTGRES_DATABASE_URL set — SQLite-only mode.");
             None
         };
 

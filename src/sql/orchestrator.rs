@@ -37,6 +37,11 @@ impl Orchestrator {
         }
     }
 
+    /// Returns a mutable reference to the SQLite connection for direct queries.
+    pub fn sqlite(&mut self) -> &mut SyncConnectionWrapper<SqliteConnection> {
+        &mut self.sqlite
+    }
+
     pub async fn sync_write<T>(&mut self, query: T) -> QueryResult<usize>
     where
         T: RunQueryDsl<SyncConnectionWrapper<SqliteConnection>>

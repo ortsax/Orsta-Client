@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS user_property (
     user_id INTEGER NOT NULL,
     instance_status TEXT NOT NULL DEFAULT 'inactive',
     instance_usage REAL NOT NULL DEFAULT 0.0,
+    api_key_active INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
@@ -50,6 +51,8 @@ CREATE TABLE IF NOT EXISTS billing (
     average_hourly_consumption REAL NOT NULL DEFAULT 0.0,
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
+
+ALTER TABLE user_property ADD COLUMN IF NOT EXISTS api_key_active INTEGER NOT NULL DEFAULT 0;
 ";
 
 impl Orchestrator {

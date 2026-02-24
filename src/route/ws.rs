@@ -1,5 +1,5 @@
 use crate::{
-    auth::{COOKIE_NAME, validate_token},
+    auth::{Claims, COOKIE_NAME, validate_token},
     sql::Orchestrator,
 };
 use axum::{
@@ -10,6 +10,9 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use chrono;
+use diesel::prelude::*;
+use diesel_async::RunQueryDsl;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -40,15 +43,25 @@ struct WsOutgoing {
 // /ws  upgrade handler
 // ---------------------------------------------------------------------------
 
-/// Upgrade to WebSocket only when a valid session token is present.
+/// Upgrade to WebSocket. Accepts two auth methods:
+///   1. JWT — `Authorization: Bearer <token>` or `orsta_session` cookie
+///   2. API Key — `X-Api-Key: <eakey>` (must have api_key_active = true)
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
     State(orch): State<Arc<Mutex<Orchestrator>>>,
     headers: axum::http::HeaderMap,
 ) -> impl IntoResponse {
-    let token = extract_bearer_or_cookie(&headers);
-    match token.as_deref().map(validate_token) {
-        Some(Ok(claims)) => ws.on_upgrade(move |socket| handle_socket(socket, claims, orch)),
+    // --- API Key path ---
+    if let Some(api_key) = extract_api_key(&headers) {
+        return match resolve_api_key(&api_key, &orch).await {
+            Some(claims) => ws.on_upgrade(move |socket| handle_socket(socket, claims, orch)).into_response(),
+            None => (StatusCode::UNAUTHORIZED, "Invalid or inactive API key").into_response(),
+        };
+    }
+
+    // --- JWT path ---
+    match extract_bearer_or_cookie(&headers).as_deref().map(validate_token) {
+        Some(Ok(claims)) => ws.on_upgrade(move |socket| handle_socket(socket, claims, orch)).into_response(),
         _ => (StatusCode::UNAUTHORIZED, "Missing or invalid session token").into_response(),
     }
 }
@@ -163,4 +176,50 @@ fn extract_bearer_or_cookie(headers: &axum::http::HeaderMap) -> Option<String> {
         }
     }
     None
+}
+
+/// Extract the value of the `X-Api-Key` header.
+fn extract_api_key(headers: &axum::http::HeaderMap) -> Option<String> {
+    headers
+        .get("x-api-key")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+}
+
+/// Look up a user by their eakey and return Claims if api_key_active is true.
+async fn resolve_api_key(
+    key: &str,
+    orch: &Arc<Mutex<Orchestrator>>,
+) -> Option<Claims> {
+    use crate::schema::{user_property::dsl as prop, users::dsl as udsl};
+    use crate::sql::user::User;
+    use crate::sql::user_property::UserProperty;
+
+    let mut db = orch.lock().await;
+
+    let user: User = udsl::users
+        .filter(udsl::eakey.eq(key))
+        .select(User::as_select())
+        .first(&mut db.sqlite)
+        .await
+        .ok()?;
+
+    let property: UserProperty = prop::user_property
+        .filter(prop::user_id.eq(user.id))
+        .select(UserProperty::as_select())
+        .first(&mut db.sqlite)
+        .await
+        .ok()?;
+
+    if !property.api_key_active {
+        return None;
+    }
+
+    let now = chrono::Utc::now().timestamp() as usize;
+    Some(Claims {
+        sub: user.id.to_string(),
+        username: user.username,
+        exp: now + crate::auth::TOKEN_EXPIRY_SECS as usize,
+        iat: now,
+    })
 }

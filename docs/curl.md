@@ -100,7 +100,84 @@ Once connected, type JSON messages and press Enter:
 
 ---
 
-## 6. Storing the Cookie with cURL
+## 7. Billing
+
+All billing endpoints require a JWT via `Authorization: Bearer` or the `orsta_session` cookie.
+
+### Enable API Key (pay & activate)
+
+```bash
+curl -X POST http://localhost:3000/billing/enable-api-key \
+  -H "Authorization: Bearer <your_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 9.99,
+    "description": "Monthly API access",
+    "metadata": { "plan": "starter" }
+  }'
+```
+
+**Response (success):**
+```json
+{
+  "ok": true,
+  "message": "API key activated",
+  "transaction_id": "txn_abc123",
+  "provider": "stripe",
+  "amount_charged": 9.99
+}
+```
+
+**Response (payment failed — 402):**
+```json
+{
+  "error": "Payment failed",
+  "reason": "Card declined",
+  "provider": "stripe"
+}
+```
+
+### Disable API Key
+
+```bash
+curl -X POST http://localhost:3000/billing/disable-api-key \
+  -H "Authorization: Bearer <your_token>"
+```
+
+**Response:**
+```json
+{ "ok": true, "message": "API key deactivated" }
+```
+
+### API Key Status
+
+```bash
+curl http://localhost:3000/billing/api-key-status \
+  -H "Authorization: Bearer <your_token>"
+```
+
+**Response:**
+```json
+{ "api_key": "a3f9...c1d2", "active": true }
+```
+
+### Billing Summary
+
+```bash
+curl http://localhost:3000/billing/summary \
+  -H "Authorization: Bearer <your_token>"
+```
+
+**Response:**
+```json
+{
+  "amount_in_wallet": 50.00,
+  "amount_spent": 9.99,
+  "total_amount_spent": 19.98,
+  "average_hourly_consumption": 0.014
+}
+```
+
 
 Sign in and persist the session cookie to a file for subsequent requests:
 

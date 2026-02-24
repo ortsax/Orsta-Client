@@ -17,6 +17,7 @@ diesel::table! {
         user_id -> Integer,
         instance_status -> Text,
         instance_usage -> Double,
+        api_key_active -> Bool,
     }
 }
 

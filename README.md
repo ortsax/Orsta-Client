@@ -8,8 +8,8 @@ The purpose of this client is to provide a unified backend interface for the adm
 
 All communication with Orsta-Client happens over two channels:
 
-- **HTTP** — used exclusively for authentication (`/auth/signup`, `/auth/login`, `/auth/logout`)
-- **WebSocket** — used for everything else once a session is established
+- **HTTP** — authentication (`/auth/signup`, `/auth/login`, `/auth/logout`) and billing (`/billing/*`)
+- **WebSocket** — real-time instance control once a session is established
 
 ### 1. Authentication
 
@@ -70,6 +70,58 @@ All WebSocket messages are JSON envelopes:
 | `whoami` | Returns current user info | `{ "action": "whoami", "data": { "user_id": "1", "username": "alice" } }` |
 
 See [`docs/`](./docs) for full usage examples in TypeScript, Go, Python, and cURL.
+
+### 4. Billing
+
+Billing endpoints require a valid `Authorization: Bearer <token>` header.
+
+**Activate API key** (charges the user)
+
+```http
+POST /billing/enable-api-key
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "amount": 9.99,
+  "description": "Monthly API access",
+  "metadata": { "plan": "starter" }
+}
+```
+
+Response:
+```json
+{
+  "ok": true,
+  "message": "API key activated",
+  "transaction_id": "txn_abc123",
+  "provider": "stripe",
+  "amount_charged": 9.99
+}
+```
+
+**Deactivate API key**
+
+```http
+POST /billing/disable-api-key
+Authorization: Bearer <token>
+```
+
+**Check API key status**
+
+```http
+GET /billing/api-key-status
+Authorization: Bearer <token>
+```
+
+**Billing summary**
+
+```http
+GET /billing/summary
+Authorization: Bearer <token>
+```
+
+> Payment processing requires a [`PaymentProvider`](./docs/payment-setup.md) implementation. See [`docs/payment-setup.md`](./docs/payment-setup.md) for setup instructions.
 
 ## License
 

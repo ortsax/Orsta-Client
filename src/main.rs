@@ -1,5 +1,6 @@
 mod auth;
 mod logger;
+mod payment;
 mod route;
 mod schema;
 mod sql;

@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod billing;
 pub mod user;
 pub mod ws;
 
@@ -18,15 +19,15 @@ pub fn start_client_api_service(orch: Arc<Mutex<Orchestrator>>) -> Router {
         .allow_headers(Any);
 
     Router::new()
-        // Health check (no auth required)
         .route("/health", get(|| async { "OK" }))
-        // Auth — plain HTTP (cookie + JSON response)
         .route("/auth/signup", post(auth::signup))
         .route("/auth/login", post(auth::login))
         .route("/auth/logout", post(auth::logout))
-        // Authenticated HTTP example
         .route("/me", get(auth::me))
-        // WebSocket service — token required
+        .route("/billing/enable-api-key", post(billing::enable_api_key))
+        .route("/billing/disable-api-key", post(billing::disable_api_key))
+        .route("/billing/api-key-status", get(billing::api_key_status))
+        .route("/billing/summary", get(billing::summary))
         .route("/ws", get(ws::ws_handler))
         .with_state(orch)
         .layer(cors)

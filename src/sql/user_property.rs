@@ -11,6 +11,7 @@ pub struct UserProperty {
     pub user_id: i32,
     pub instance_status: String,
     pub instance_usage: f64,
+    pub api_key_active: bool,
 }
 
 #[derive(Insertable, Deserialize)]
@@ -19,4 +20,5 @@ pub struct NewUserProperty {
     pub user_id: i32,
     pub instance_status: String,
     pub instance_usage: f64,
+    pub api_key_active: bool,
 }

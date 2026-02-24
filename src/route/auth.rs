@@ -114,6 +114,7 @@ pub async fn signup(
             user_id: user.id,
             instance_status: "inactive".to_string(),
             instance_usage: 0.0,
+            api_key_active: false,
         })
         .execute(&mut db.sqlite)
         .await;

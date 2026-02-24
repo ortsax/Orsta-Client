@@ -5,6 +5,8 @@ mod route;
 mod schema;
 mod sql;
 
+use axum::Extension;
+use payment::DummyPaymentProvider;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::time::{Duration, sleep};
@@ -35,6 +37,19 @@ async fn main() {
     });
 
     let app = route::start_client_api_service(Arc::clone(&orchestrator));
+
+    let dummy_mode = std::env::var("DUMMY_PAYMENT_MODE")
+        .map(|v| v.eq_ignore_ascii_case("true") || v == "1")
+        .unwrap_or(false);
+
+    let payment_provider: Arc<dyn payment::PaymentProvider> = if dummy_mode {
+        info!("DUMMY_PAYMENT_MODE enabled — all payments will auto-succeed.");
+        Arc::new(DummyPaymentProvider)
+    } else {
+        panic!("No PaymentProvider configured. Set DUMMY_PAYMENT_MODE=true for development or implement a real provider.");
+    };
+
+    let app = app.layer(Extension(payment_provider));
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
     let addr = format!("0.0.0.0:{}", port);

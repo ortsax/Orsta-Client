@@ -46,3 +46,26 @@ pub trait PaymentProvider: Send + Sync {
     ) -> Pin<Box<dyn Future<Output = PaymentOutcome> + Send + 'a>>;
 }
 
+// ---------------------------------------------------------------------------
+// Dummy provider — always succeeds. Use only in development/testing.
+// Enabled automatically when DUMMY_PAYMENT_MODE=true.
+// ---------------------------------------------------------------------------
+
+pub struct DummyPaymentProvider;
+
+impl PaymentProvider for DummyPaymentProvider {
+    fn charge<'a>(
+        &'a self,
+        details: &'a PaymentDetails,
+    ) -> Pin<Box<dyn Future<Output = PaymentOutcome> + Send + 'a>> {
+        Box::pin(async move {
+            PaymentOutcome {
+                success: true,
+                provider: "dummy".to_string(),
+                message: format!("Dummy charge of ${:.2} approved.", details.amount),
+                transaction_id: Some(format!("dummy_txn_{}", uuid::Uuid::new_v4())),
+            }
+        })
+    }
+}
+

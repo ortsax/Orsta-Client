@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 /// Base rate: $0.48 per hour expressed in cents.
 pub const HOURLY_RATE_CENTS: i64 = 48;
 
-/// 30 % discount applied to new users for their first two months.
+/// 30% discount applied to new users for their first two months.
 pub const PROMOTION_DISCOUNT_PERCENT: i64 = 30;
 
 /// Duration of the new-user promotion in seconds (~2 calendar months).
